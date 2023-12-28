@@ -10,7 +10,7 @@ type MemDb struct {
 	mutex              sync.RWMutex
 	coins              map[string]*types.CoinInfo
 	utxoCoin           map[string]*types.UnspentCoin
-	addressCoin        map[string]map[string]*types.UnspentCoin
+	addressUtxoCoin    map[string]map[string]*types.UnspentCoin
 	addressCoinBalance map[string]map[string]int
 	coinAddressBalance map[string]map[string]int
 }
@@ -21,7 +21,7 @@ func NewMemDb(debug bool) *MemDb {
 	db := &MemDb{
 		coins:              make(map[string]*types.CoinInfo),
 		utxoCoin:           make(map[string]*types.UnspentCoin),
-		addressCoin:        make(map[string]map[string]*types.UnspentCoin),
+		addressUtxoCoin:    make(map[string]map[string]*types.UnspentCoin),
 		addressCoinBalance: make(map[string]map[string]int),
 		coinAddressBalance: make(map[string]map[string]int),
 	}
@@ -80,7 +80,7 @@ func (m *MemDb) GetCoinsByAddress(address string) ([]*types.UnspentCoin, error) 
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
-	if coins, ok := m.addressCoin[address]; ok {
+	if coins, ok := m.addressUtxoCoin[address]; ok {
 		var results []*types.UnspentCoin
 		for _, coin := range coins {
 			results = append(results, coin)
@@ -138,13 +138,13 @@ func (m *MemDb) UtxoBatchUpdate(updates map[string]*types.UnspentCoin) error {
 	for utxo, uc := range updates {
 		if uc == nil {
 			delete(m.utxoCoin, utxo)
-			delete(m.addressCoin[uc.Owner], uc.Utxo)
+			delete(m.addressUtxoCoin[uc.Owner], uc.Utxo)
 		} else {
 			m.utxoCoin[utxo] = uc
-			if _, ok := m.addressCoin[uc.Owner]; !ok {
-				m.addressCoin[uc.Owner] = make(map[string]*types.UnspentCoin)
+			if _, ok := m.addressUtxoCoin[uc.Owner]; !ok {
+				m.addressUtxoCoin[uc.Owner] = make(map[string]*types.UnspentCoin)
 			}
-			m.addressCoin[uc.Owner][uc.Utxo] = uc
+			m.addressUtxoCoin[uc.Owner][uc.Utxo] = uc
 		}
 	}
 	return nil
@@ -155,8 +155,9 @@ func (m *MemDb) fillTestData() {
 		Id:          "TESTCA",
 		TotalSupply: 5,
 		Args: map[string]interface{}{
-			"max":  uint64(100),
-			"sats": uint64(10000),
+			"max":   uint64(100),
+			"sats":  uint64(10000),
+			"limit": 1,
 		},
 		TxCount:     1,
 		HolderCount: 100,
@@ -166,8 +167,9 @@ func (m *MemDb) fillTestData() {
 		Id:          "TESTCB",
 		TotalSupply: 5,
 		Args: map[string]interface{}{
-			"max":  uint64(100),
-			"sats": uint64(10000),
+			"max":   uint64(100),
+			"sats":  uint64(10000),
+			"limit": 1,
 		},
 		TxCount:     2,
 		HolderCount: 99,
@@ -177,8 +179,9 @@ func (m *MemDb) fillTestData() {
 		Id:          "TESTCC",
 		TotalSupply: 5,
 		Args: map[string]interface{}{
-			"max":  uint64(100),
-			"sats": uint64(10000),
+			"max":   uint64(100),
+			"sats":  uint64(10000),
+			"limit": 1,
 		},
 		TxCount:     3,
 		HolderCount: 98,
@@ -188,8 +191,9 @@ func (m *MemDb) fillTestData() {
 		Id:          "TESTCD",
 		TotalSupply: 5,
 		Args: map[string]interface{}{
-			"max":  uint64(100),
-			"sats": uint64(10000),
+			"max":   uint64(100),
+			"sats":  uint64(10000),
+			"limit": 1,
 		},
 		TxCount:     4,
 		HolderCount: 97,
@@ -199,8 +203,9 @@ func (m *MemDb) fillTestData() {
 		Id:          "TESTCE",
 		TotalSupply: 5,
 		Args: map[string]interface{}{
-			"max":  uint64(100),
-			"sats": uint64(10000),
+			"max":   uint64(100),
+			"sats":  uint64(10000),
+			"limit": 1,
 		},
 		TxCount:     5,
 		HolderCount: 96,
@@ -210,8 +215,9 @@ func (m *MemDb) fillTestData() {
 		Id:          "TESTCF",
 		TotalSupply: 5,
 		Args: map[string]interface{}{
-			"max":  uint64(100),
-			"sats": uint64(10000),
+			"max":   uint64(100),
+			"sats":  uint64(10000),
+			"limit": 1,
 		},
 		TxCount:     6,
 		HolderCount: 95,
@@ -221,8 +227,9 @@ func (m *MemDb) fillTestData() {
 		Id:          "TESTCG",
 		TotalSupply: 5,
 		Args: map[string]interface{}{
-			"max":  uint64(100),
-			"sats": uint64(10000),
+			"max":   uint64(100),
+			"sats":  uint64(10000),
+			"limit": 1,
 		},
 		TxCount:     7,
 		HolderCount: 94,
@@ -232,8 +239,9 @@ func (m *MemDb) fillTestData() {
 		Id:          "TESTCH",
 		TotalSupply: 5,
 		Args: map[string]interface{}{
-			"max":  uint64(100),
-			"sats": uint64(10000),
+			"max":   uint64(100),
+			"sats":  uint64(10000),
+			"limit": 1,
 		},
 		TxCount:     8,
 		HolderCount: 93,
@@ -243,8 +251,9 @@ func (m *MemDb) fillTestData() {
 		Id:          "TESTCI",
 		TotalSupply: 5,
 		Args: map[string]interface{}{
-			"max":  uint64(100),
-			"sats": uint64(10000),
+			"max":   uint64(100),
+			"sats":  uint64(10000),
+			"limit": 1,
 		},
 		TxCount:     9,
 		HolderCount: 92,
@@ -254,8 +263,9 @@ func (m *MemDb) fillTestData() {
 		Id:          "TESTCJ",
 		TotalSupply: 5,
 		Args: map[string]interface{}{
-			"max":  uint64(100),
-			"sats": uint64(10000),
+			"max":   uint64(100),
+			"sats":  uint64(10000),
+			"limit": 1,
 		},
 		TxCount:     10,
 		HolderCount: 91,
@@ -265,8 +275,9 @@ func (m *MemDb) fillTestData() {
 		Id:          "TESTCK",
 		TotalSupply: 5,
 		Args: map[string]interface{}{
-			"max":  uint64(100),
-			"sats": uint64(10000),
+			"max":   uint64(100),
+			"sats":  uint64(10000),
+			"limit": 1,
 		},
 		TxCount:     11,
 		HolderCount: 90,
@@ -276,8 +287,9 @@ func (m *MemDb) fillTestData() {
 		Id:          "TESTCL",
 		TotalSupply: 5,
 		Args: map[string]interface{}{
-			"max":  uint64(100),
-			"sats": uint64(10000),
+			"max":   uint64(100),
+			"sats":  uint64(10000),
+			"limit": 1,
 		},
 		TxCount:     12,
 		HolderCount: 89,
@@ -326,11 +338,11 @@ func (m *MemDb) fillTestData() {
 		Utxo:   "1114:0",
 	}
 
-	m.addressCoin["addr1"] = map[string]*types.UnspentCoin{
+	m.addressUtxoCoin["addr1"] = map[string]*types.UnspentCoin{
 		"1111:0": m.utxoCoin["1111:0"],
 		"1113:0": m.utxoCoin["1113:0"],
 	}
-	m.addressCoin["addr2"] = map[string]*types.UnspentCoin{
+	m.addressUtxoCoin["addr2"] = map[string]*types.UnspentCoin{
 		"1112:0": m.utxoCoin["1112:0"],
 		"1114:0": m.utxoCoin["1114:0"],
 	}

@@ -19,6 +19,7 @@ var (
 	COIN_ID_LEN_MAX     = 6
 	COIN_SUPPLY_MIN     = uint64(1)
 	COIN_SATS_MIN       = uint64(10000)
+	COIN_MINT_LIMIT_MIN = uint64(1)
 	COIN_LOCKED_BTC_MAX = uint64(21_000_000 * 1_000_000) // 1% of total BTC supply.
 )
 
@@ -63,8 +64,8 @@ func (p *CarvProtocol) Parse(tx extract.Transaction) ([]*types.NewCoinEvent, []*
 	// Only one Carv protocol metadata is allowed per transaction.
 	metaFound := false
 	for i, vout := range tx.GetVout() {
-		// There should be at least one valid UTXO preceding the metadata of the Carv protocol.
-		if i == 0 || vout.GetValue() != 0 || len(vout.GetAddress()) != 0 || !strings.HasPrefix(vout.GetAsm(), CARV_PREFIX) {
+		// Basic criteria for Carv protocol metadata.
+		if vout.GetValue() != 0 || len(vout.GetAddress()) != 0 || !strings.HasPrefix(vout.GetAsm(), CARV_PREFIX) {
 			continue
 		}
 
@@ -97,11 +98,11 @@ func (p *CarvProtocol) Parse(tx extract.Transaction) ([]*types.NewCoinEvent, []*
 		}
 		args := utils.VarintDecodeArray(meta)
 
-		if len(args) == 3 { // Deploy.
-			id, max, sats := utils.Base26Decode(args[0]), args[1], args[2]
+		if len(args) == 4 { // Deploy.
+			id, max, sats, limit := utils.Base26Decode(args[0]), args[1], args[2], args[3]
 			// Easy checks go first.
-			if len(id) < COIN_ID_LEN_MIN || len(id) > COIN_ID_LEN_MAX || max < COIN_SUPPLY_MIN || sats < COIN_SATS_MIN {
-				return nil, nil, fmt.Errorf("invalid arguments for deployment, id = %s, max = %d, sats = %d", id, max, sats)
+			if len(id) < COIN_ID_LEN_MIN || len(id) > COIN_ID_LEN_MAX || max < COIN_SUPPLY_MIN || sats < COIN_SATS_MIN || limit < COIN_MINT_LIMIT_MIN {
+				return nil, nil, fmt.Errorf("invalid arguments for deployment, id = %s, max = %d, sats = %d, limit = %d", id, max, sats, limit)
 			}
 
 			lockedBtc := max * sats
@@ -109,9 +110,8 @@ func (p *CarvProtocol) Parse(tx extract.Transaction) ([]*types.NewCoinEvent, []*
 				return nil, nil, fmt.Errorf("locked BTC out of range, max = %d, sats = %d, lockedBtc = %d", max, sats, lockedBtc)
 			}
 
-			// There must be exactly one valid UTXO following the metadata of the Carv protocol.
-			if i != 1 || tx.GetVout()[0].GetValue() != float64(sats) || len(tx.GetVout()[0].GetAddress()) == 0 {
-				return nil, nil, fmt.Errorf("invalid UTXO following deployment metadata: %v", tx)
+			if i != 0 {
+				return nil, nil, fmt.Errorf("metadata for deployment placed at the %d-th UTXO, should be the first", i+1)
 			}
 
 			// Check if the coin ID is already taken.
@@ -124,8 +124,9 @@ func (p *CarvProtocol) Parse(tx extract.Transaction) ([]*types.NewCoinEvent, []*
 				Protocol: "carv",
 				CoinId:   id,
 				Args: map[string]interface{}{
-					"max":  max,
-					"sats": sats,
+					"max":   max,
+					"sats":  sats,
+					"limit": limit,
 				},
 			})
 		} else if len(args) == 1 { // Mint or transfer.
@@ -144,12 +145,17 @@ func (p *CarvProtocol) Parse(tx extract.Transaction) ([]*types.NewCoinEvent, []*
 
 			if totalInput == 0 { // Mint.
 				// There must be exactly one valid UTXO following the metadata of the Carv protocol.
-				if i != 1 || tx.GetVout()[0].GetValue() != float64(ci.Args["sats"].(uint64)) || len(tx.GetVout()[0].GetAddress()) == 0 {
+				if i != 1 || len(tx.GetVout()[0].GetAddress()) == 0 {
 					return nil, nil, fmt.Errorf("invalid UTXO following mint metadata: %v", tx)
 				}
 
-				if ci.TotalSupply == int(ci.Args["max"].(uint64)) {
-					return nil, nil, fmt.Errorf("coin already at max supply: %s", id)
+				if uint64(tx.GetVout()[0].GetValue())%ci.Args["sats"].(uint64) != 0 {
+					return nil, nil, fmt.Errorf("the valid output of Carv Coin %s should be an integer multiple of %d, tx = %v", id, ci.Args["sats"].(uint64), tx)
+				}
+
+				delta := uint64(tx.GetVout()[0].GetValue()) / ci.Args["sats"].(uint64)
+				if uint64(ci.TotalSupply)+delta > ci.Args["max"].(uint64) {
+					return nil, nil, fmt.Errorf("mint Carv Coin %s exceed max supply, totalSupply = %d, delta = %d, max = %d", id, ci.TotalSupply, delta, ci.Args["max"].(uint64))
 				}
 
 				balanceChangeEvents = append(balanceChangeEvents, &types.BalanceChangeEvent{
@@ -157,7 +163,7 @@ func (p *CarvProtocol) Parse(tx extract.Transaction) ([]*types.NewCoinEvent, []*
 					Protocol: "carv",
 					CoinId:   id,
 					Address:  tx.GetVout()[0].GetAddress(),
-					Delta:    1,
+					Delta:    int(delta),
 					Utxo:     tx.GetTxid() + ":0",
 					IsMint:   true,
 				})

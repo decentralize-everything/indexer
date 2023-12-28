@@ -18,26 +18,6 @@ func setup(t *testing.T) (*store.MockDatabase, *CarvProtocol) {
 	return mockDb, NewCarvProtocol(mockDb, logger)
 }
 
-func TestMetadataInFirstPlaceIgnored(t *testing.T) {
-	mockDb, carv := setup(t)
-	mockDb.EXPECT().GetCoinsInUtxos([]string{}).Return(nil, nil)
-
-	newCoins, balanceChanges, err := carv.Parse(
-		&mempool.Transaction{
-			Vout: []mempool.Vout{
-				{
-					Value: 0,
-					Asm:   "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_1 00",
-				},
-			},
-		},
-	)
-
-	if err != nil || len(newCoins) != 0 || len(balanceChanges) != 0 {
-		t.Fatal("should not have found anything")
-	}
-}
-
 func TestMetadataTooShortError(t *testing.T) {
 	mockDb, carv := setup(t)
 	mockDb.EXPECT().GetCoinsInUtxos([]string{}).Return(nil, nil)
@@ -167,13 +147,13 @@ func TestInvalidCoinIdLen(t *testing.T) {
 			Vout: []mempool.Vout{
 				{},
 				{
-					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_8 8a80eb9e2501cd10",
+					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_9 8a80eb9e2501cd1001",
 				},
 			},
 		},
 	)
 
-	if err == nil || err.Error() != "invalid arguments for deployment, id = INVALID, max = 1, sats = 10000" {
+	if err == nil || err.Error() != "invalid arguments for deployment, id = INVALID, max = 1, sats = 10000, limit = 1" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -187,13 +167,13 @@ func TestInvalidMaxSupply(t *testing.T) {
 			Vout: []mempool.Vout{
 				{},
 				{
-					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_6 82a40500cd10",
+					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_7 82a40500cd1001",
 				},
 			},
 		},
 	)
 
-	if err == nil || err.Error() != "invalid arguments for deployment, id = CARV, max = 0, sats = 10000" {
+	if err == nil || err.Error() != "invalid arguments for deployment, id = CARV, max = 0, sats = 10000, limit = 1" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -207,13 +187,13 @@ func TestInvalidMinSats(t *testing.T) {
 			Vout: []mempool.Vout{
 				{},
 				{
-					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_6 82a40501a608",
+					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_7 82a40501a60801",
 				},
 			},
 		},
 	)
 
-	if err == nil || err.Error() != "invalid arguments for deployment, id = CARV, max = 1, sats = 5000" {
+	if err == nil || err.Error() != "invalid arguments for deployment, id = CARV, max = 1, sats = 5000, limit = 1" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -227,7 +207,7 @@ func TestLockedBtcTooHigh(t *testing.T) {
 			Vout: []mempool.Vout{
 				{},
 				{
-					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_10 82a4058980dd40bc8341",
+					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_11 82a4058980dd40bc834101",
 				},
 			},
 		},
@@ -247,7 +227,7 @@ func TestLockedBtcOverflow(t *testing.T) {
 			Vout: []mempool.Vout{
 				{},
 				{
-					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_14 82a4058cefacd5b9ba8eff00cd10",
+					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_15 82a4058cefacd5b9ba8eff00cd1001",
 				},
 			},
 		},
@@ -258,7 +238,7 @@ func TestLockedBtcOverflow(t *testing.T) {
 	}
 }
 
-func TestDeployUtxoValueMismatchWithSats(t *testing.T) {
+func TestDeployUtxoIsNot1stError(t *testing.T) {
 	mockDb, carv := setup(t)
 	mockDb.EXPECT().GetCoinsInUtxos([]string{}).Return(nil, nil)
 
@@ -267,16 +247,16 @@ func TestDeployUtxoValueMismatchWithSats(t *testing.T) {
 			Vout: []mempool.Vout{
 				{
 					Address: "1234",
-					Value:   5000,
+					Value:   10000,
 				},
 				{
-					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_9 82a4058980dd40cd10",
+					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_10 82a4058980dd40cd1001",
 				},
 			},
 		},
 	)
 
-	if err == nil || err.Error() != "invalid UTXO following deployment metadata: &{ [] [{5000 1234 } {0  OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_9 82a4058980dd40cd10}]}" {
+	if err == nil || err.Error() != "metadata for deployment placed at the 2-th UTXO, should be the first" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -292,11 +272,7 @@ func TestDeployCoinAlreadyExists(t *testing.T) {
 		&mempool.Transaction{
 			Vout: []mempool.Vout{
 				{
-					Address: "1234",
-					Value:   10000,
-				},
-				{
-					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_9 82a4058980dd40cd10",
+					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_10 82a4058980dd40cd1001",
 				},
 			},
 		},
@@ -316,11 +292,7 @@ func TestDeploySuccess(t *testing.T) {
 		&mempool.Transaction{
 			Vout: []mempool.Vout{
 				{
-					Address: "1234",
-					Value:   10000,
-				},
-				{
-					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_9 82a4058980dd40cd10",
+					Asm: "OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_10 82a4058980dd40cd1001",
 				},
 			},
 		},
@@ -335,8 +307,9 @@ func TestDeploySuccess(t *testing.T) {
 		Protocol: "carv",
 		CoinId:   "CARV",
 		Args: map[string]interface{}{
-			"max":  uint64(21000000),
-			"sats": uint64(10000),
+			"max":   uint64(21000000),
+			"sats":  uint64(10000),
+			"limit": uint64(1),
 		},
 	}
 	if !reflect.DeepEqual(newCoinEvents[0], expected) {
@@ -370,7 +343,7 @@ func TestMintUtxoValueMismatchWithSats(t *testing.T) {
 		},
 	)
 
-	if err == nil || err.Error() != "invalid UTXO following mint metadata: &{ [] [{5000 1234 } {0  OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_3 82a405}]}" {
+	if err == nil || err.Error() != "the valid output of Carv Coin CARV should be an integer multiple of 10000, tx = &{ [] [{5000 1234 } {0  OP_RETURN OP_PUSHBYTES_1 43 OP_PUSHBYTES_3 82a405}]}" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -401,7 +374,7 @@ func TestMintTotalSupplyExceed(t *testing.T) {
 		},
 	)
 
-	if err == nil || err.Error() != "coin already at max supply: CARV" {
+	if err == nil || err.Error() != "mint Carv Coin CARV exceed max supply, totalSupply = 21000000, delta = 1, max = 21000000" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
