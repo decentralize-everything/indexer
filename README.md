@@ -45,7 +45,7 @@ eg. localhost:8080/api/v1/addresses/addr1/coins
 ## Get coin list
 
 ```shell
-GET /api/v1/addresses/addr1/coins
+GET /api/v1/coins
 
 params:
     * page >= 1, default 1
@@ -53,7 +53,7 @@ params:
     * sorted_by tx_count(default)/holder_count/created_at
     * dir desc(default)/asc 
 
-eg. localhost:8080/api/v1/addresses/addr1/coins
+eg. localhost:8080/api/v1/coins
 
 {
 	"data": [
