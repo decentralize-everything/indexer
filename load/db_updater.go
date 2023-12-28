@@ -37,7 +37,7 @@ OUTER:
 					Id:          event.CoinId,
 					TotalSupply: 0,
 					Args:        event.Args,
-					TxCount:     0, // Set to zero here, because it will be incremented by mint later.
+					TxCount:     1,
 					CreatedAt:   batch.Block.GetHeight(),
 				}
 			} else {
@@ -99,5 +99,6 @@ OUTER:
 	if len(utxoUpdates) > 0 {
 		u.db.UtxoBatchUpdate(utxoUpdates)
 	}
+	u.db.IndexedHeightUpdate(batch.Block.GetHeight())
 	return nil
 }

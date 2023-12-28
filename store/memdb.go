@@ -1,35 +1,92 @@
 package store
 
 import (
+	"bytes"
+	"encoding/gob"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/decentralize-everything/indexer/types"
+	"go.uber.org/zap"
 )
 
+/*
+Data volume estimation:
+- 1 coins < 1k
+- 2 utxoCoin < 100k per coin = 100m
+- 3 addressUtxoCoin < 100k addresses
+- 4 addressCoinBalance < 100k addresses
+- 5 coinAddressBalance < 1k coins
+*/
 type MemDb struct {
 	mutex              sync.RWMutex
+	network            string
+	height             int
 	coins              map[string]*types.CoinInfo
 	utxoCoin           map[string]*types.UnspentCoin
 	addressUtxoCoin    map[string]map[string]*types.UnspentCoin
 	addressCoinBalance map[string]map[string]int
 	coinAddressBalance map[string]map[string]int
+
+	/*
+		Data schema:
+		- height: {"height" : {height}}
+		- coins: {"coins/{coinId}" : {coinInfo}}
+		- utxoCoin: {"utxos/{utxo}" : {unspentCoin}}
+		- addressUtxoCoin: {"a-u-c/{address}" : {"{utxo}" : {unspentCoin}}}
+		- addressCoinBalance: {"a-c-b/{address}" : {"{coinId}" : {balance}}}
+		- coinAddressBalance: {"c-a-b/{coinId}" : {"{address}" : {balance}}}
+	*/
+	persistDb *BadgerDB
+	logger    *zap.Logger
 }
+
+var (
+	STATUS_KEY   = "status"
+	COINS_PREFIX = "coins/"
+	UTXOS_PREFIX = "utxos/"
+	AUC_PREFIX   = "a-u-c/"
+	ACB_PREFIX   = "a-c-b/"
+	CAB_PREFIX   = "c-a-b/"
+)
 
 var _ Database = (*MemDb)(nil)
 
-func NewMemDb(debug bool) *MemDb {
+func NewMemDb(persistPath string, network string, debug bool, logger *zap.Logger) *MemDb {
 	db := &MemDb{
+		network:            network,
 		coins:              make(map[string]*types.CoinInfo),
 		utxoCoin:           make(map[string]*types.UnspentCoin),
 		addressUtxoCoin:    make(map[string]map[string]*types.UnspentCoin),
 		addressCoinBalance: make(map[string]map[string]int),
 		coinAddressBalance: make(map[string]map[string]int),
+		logger:             logger,
+	}
+
+	if len(persistPath) > 0 {
+		db.persistDb = NewBadgerDB(persistPath)
+		db.loadIntoMem()
 	}
 
 	if debug {
 		db.fillTestData()
 	}
 	return db
+}
+
+func (m *MemDb) Close() error {
+	if m.persistDb != nil {
+		return m.persistDb.Close()
+	}
+	return nil
+}
+
+func (m *MemDb) GetStatus() (int, string, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	return m.height, m.network, nil
 }
 
 func (m *MemDb) GetCoinInfos() ([]*types.CoinInfo, error) {
@@ -94,8 +151,22 @@ func (m *MemDb) CoinInfoBatchUpdate(updates map[string]*types.CoinInfo) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
+	var keys []string
+	var values [][]byte
 	for id, ci := range updates {
 		m.coins[id] = ci
+		if m.persistDb != nil {
+			keys = append(keys, COINS_PREFIX+id)
+			values = append(values, ci.ToBytes())
+		}
+	}
+
+	if m.persistDb == nil {
+		return nil
+	}
+
+	if err := m.persistDb.BatchSet(keys, values); err != nil {
+		return err
 	}
 	return nil
 }
@@ -104,6 +175,8 @@ func (m *MemDb) BalanceBatchUpdate(coinAddressBalances map[string]map[string]int
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
+	uniqueAddresses := make(map[string]bool)
+	uniqueCoins := make(map[string]bool)
 	for coin, balances := range coinAddressBalances {
 		if _, ok := m.coinAddressBalance[coin]; !ok {
 			m.coinAddressBalance[coin] = make(map[string]int)
@@ -119,6 +192,10 @@ func (m *MemDb) BalanceBatchUpdate(coinAddressBalances map[string]map[string]int
 				}
 				m.addressCoinBalance[address][coin] += balance
 			}
+
+			if m.persistDb != nil {
+				uniqueAddresses[address] = true
+			}
 		}
 
 		// Update coin info.
@@ -127,6 +204,37 @@ func (m *MemDb) BalanceBatchUpdate(coinAddressBalances map[string]map[string]int
 		} else {
 			panic("unexpected error: coin info didn't exist")
 		}
+
+		if m.persistDb != nil {
+			uniqueCoins[coin] = true
+		}
+	}
+
+	if m.persistDb == nil {
+		return nil
+	}
+
+	var keys []string
+	var values [][]byte
+	for coin := range uniqueCoins {
+		keys = append(keys, CAB_PREFIX+coin)
+		var data bytes.Buffer
+		if err := gob.NewEncoder(&data).Encode(m.coinAddressBalance[coin]); err != nil {
+			return err
+		}
+		values = append(values, data.Bytes())
+	}
+	for address := range uniqueAddresses {
+		keys = append(keys, ACB_PREFIX+address)
+		var data bytes.Buffer
+		if err := gob.NewEncoder(&data).Encode(m.addressCoinBalance[address]); err != nil {
+			return err
+		}
+		values = append(values, data.Bytes())
+	}
+
+	if err := m.persistDb.BatchSet(keys, values); err != nil {
+		return err
 	}
 	return nil
 }
@@ -135,10 +243,14 @@ func (m *MemDb) UtxoBatchUpdate(updates map[string]*types.UnspentCoin) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
+	var keys []string
+	var values [][]byte
+	uniqueAddresses := make(map[string]bool)
 	for utxo, uc := range updates {
+		old := m.utxoCoin[utxo]
 		if uc == nil {
 			delete(m.utxoCoin, utxo)
-			delete(m.addressUtxoCoin[uc.Owner], uc.Utxo)
+			delete(m.addressUtxoCoin[old.Owner], old.Utxo)
 		} else {
 			m.utxoCoin[utxo] = uc
 			if _, ok := m.addressUtxoCoin[uc.Owner]; !ok {
@@ -146,8 +258,154 @@ func (m *MemDb) UtxoBatchUpdate(updates map[string]*types.UnspentCoin) error {
 			}
 			m.addressUtxoCoin[uc.Owner][uc.Utxo] = uc
 		}
+
+		if m.persistDb != nil {
+			keys = append(keys, UTXOS_PREFIX+utxo)
+			if uc == nil {
+				values = append(values, nil)
+				uniqueAddresses[old.Owner] = true
+			} else {
+				values = append(values, uc.ToBytes())
+				uniqueAddresses[uc.Owner] = true
+			}
+		}
+	}
+
+	if m.persistDb == nil {
+		return nil
+	}
+
+	// Collect unique addresses' updates.
+	for address := range uniqueAddresses {
+		keys = append(keys, AUC_PREFIX+address)
+		var data bytes.Buffer
+		if err := gob.NewEncoder(&data).Encode(m.addressUtxoCoin[address]); err != nil {
+			return err
+		}
+		values = append(values, data.Bytes())
+	}
+
+	if err := m.persistDb.BatchSet(keys, values); err != nil {
+		return err
 	}
 	return nil
+}
+
+func (m *MemDb) IndexedHeightUpdate(height int) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	m.height = height
+
+	if m.persistDb != nil {
+		var keys []string
+		var values [][]byte
+		keys = append(keys, STATUS_KEY)
+		var data bytes.Buffer
+		if err := gob.NewEncoder(&data).Encode(map[string]interface{}{"height": m.height, "network": m.network}); err != nil {
+			return err
+		}
+		values = append(values, data.Bytes())
+
+		if err := m.persistDb.BatchSet(keys, values); err != nil {
+			return err
+		}
+		m.persistDb.Sync()
+	}
+	return nil
+}
+
+func (m *MemDb) loadIntoMem() {
+	m.logger.Info("loading data from disk into memory")
+	start := time.Now()
+	defer func() {
+		m.logger.Info("loading data from disk into memory done", zap.Duration("duration", time.Since(start)))
+	}()
+
+	// Load height.
+	v, err := m.persistDb.Get(STATUS_KEY)
+	if err != nil || v == nil {
+		m.height = 0
+	} else {
+		status := make(map[string]interface{})
+		if err := gob.NewDecoder(bytes.NewReader(v)).Decode(&status); err != nil {
+			panic(fmt.Sprintf("failed to decode height from disk: %v", err))
+		}
+		m.height = status["height"].(int)
+		m.network = status["network"].(string)
+	}
+
+	if m.height == 0 {
+		return
+	}
+
+	// Load coins.
+	_, values, err := m.persistDb.Query(COINS_PREFIX)
+	if err != nil {
+		panic(fmt.Sprintf("failed to load coins from disk: %v", err))
+	}
+	for i := range values {
+		ci := &types.CoinInfo{}
+		if err := ci.FromBytes(values[i]); err != nil {
+			panic(fmt.Sprintf("failed to decode coin info from disk: %v", err))
+		}
+		m.coins[ci.Id] = ci
+	}
+
+	// Load utxoCoin.
+	_, values, err = m.persistDb.Query(UTXOS_PREFIX)
+	if err != nil {
+		panic(fmt.Sprintf("failed to load utxoCoin from disk: %v", err))
+	}
+	for i := range values {
+		uc := &types.UnspentCoin{}
+		if err := uc.FromBytes(values[i]); err != nil {
+			panic(fmt.Sprintf("failed to decode utxoCoin from disk: %v", err))
+		}
+		m.utxoCoin[uc.Utxo] = uc
+	}
+
+	// Load addressUtxoCoin.
+	keys, values, err := m.persistDb.Query(AUC_PREFIX)
+	if err != nil {
+		panic(fmt.Sprintf("failed to load addressUtxoCoin from disk: %v", err))
+	}
+	for i := range values {
+		address := keys[i][len(AUC_PREFIX):]
+		utxoCoin := make(map[string]*types.UnspentCoin)
+		if err := gob.NewDecoder(bytes.NewReader(values[i])).Decode(&utxoCoin); err != nil {
+			panic(fmt.Sprintf("failed to decode addressUtxoCoin from disk: %v", err))
+		}
+		m.addressUtxoCoin[address] = utxoCoin
+	}
+
+	// Load addressCoinBalance.
+	keys, values, err = m.persistDb.Query(ACB_PREFIX)
+	if err != nil {
+		panic(fmt.Sprintf("failed to load addressCoinBalance from disk: %v", err))
+	}
+	for i := range values {
+		address := keys[i][len(ACB_PREFIX):]
+		balance := make(map[string]int)
+		if err := gob.NewDecoder(bytes.NewReader(values[i])).Decode(&balance); err != nil {
+			panic(fmt.Sprintf("failed to decode addressCoinBalance from disk: %v", err))
+		}
+		m.addressCoinBalance[address] = balance
+	}
+
+	// Load coinAddressBalance.
+	keys, values, err = m.persistDb.Query(CAB_PREFIX)
+	if err != nil {
+		panic(fmt.Sprintf("failed to load coinAddressBalance from disk: %v", err))
+	}
+	for i := range values {
+		coin := keys[i][len(CAB_PREFIX):]
+		balance := make(map[string]int)
+		if err := gob.NewDecoder(bytes.NewReader(values[i])).Decode(&balance); err != nil {
+			panic(fmt.Sprintf("failed to decode coinAddressBalance from disk: %v", err))
+		}
+		m.coinAddressBalance[coin] = balance
+	}
 }
 
 func (m *MemDb) fillTestData() {

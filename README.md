@@ -1,5 +1,21 @@
 # HTTP API v1
 
+## Get indexer status
+
+```shell
+GET /api/v1/status
+
+eg. localhost:8080/api/v1/status
+
+{
+	"data": {
+		"indexed_height": 2568302,
+		"network": "testnet"
+	},
+	"result": true
+}
+```
+
 ## Get balances of address
 
 ```shell

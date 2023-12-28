@@ -32,7 +32,7 @@ import (
 
 func TestBitcoinTransformerWithMempoolClient(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
-	db := store.NewMemDb(false)
+	db := store.NewMemDb("", "testnet", false, nil)
 	btcClient := mempool.NewBitcoinClient(&chaincfg.MainNetParams)
 	btcTransformer := NewBitcoinTransformer(db, logger)
 	for i := 820000; i < 820010; i++ {

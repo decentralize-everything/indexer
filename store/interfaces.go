@@ -5,6 +5,7 @@ import (
 )
 
 type Database interface {
+	GetStatus() (int, string, error)
 	GetCoinInfos() ([]*types.CoinInfo, error)
 	GetCoinInfoById(id string) (*types.CoinInfo, error)
 	GetCoinsInUtxos(utxos []string) ([]*types.UnspentCoin, error)
@@ -13,4 +14,5 @@ type Database interface {
 	CoinInfoBatchUpdate(updates map[string]*types.CoinInfo) error
 	BalanceBatchUpdate(coinAddressBalances map[string]map[string]int) error
 	UtxoBatchUpdate(updates map[string]*types.UnspentCoin) error
+	IndexedHeightUpdate(height int) error
 }

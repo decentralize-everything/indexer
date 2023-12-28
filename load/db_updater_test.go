@@ -25,6 +25,7 @@ func TestDeployDuplicateCoinOnSameBlockError(t *testing.T) {
 	mockDb, updater, observedLogs := setup(t)
 	mockDb.EXPECT().GetCoinInfoById("CARV").Return(nil, nil)
 	mockDb.EXPECT().CoinInfoBatchUpdate(gomock.Any())
+	mockDb.EXPECT().IndexedHeightUpdate(1)
 
 	updater.Update(&types.BatchUpdate{
 		Block: &mempool.Block{
@@ -62,6 +63,7 @@ func TestDeployDuplicateCoinOnSameBlockError(t *testing.T) {
 func TestMintNonExistCoinError(t *testing.T) {
 	mockDb, updater, observedLogs := setup(t)
 	mockDb.EXPECT().GetCoinInfoById("CARV").Return(nil, nil)
+	mockDb.EXPECT().IndexedHeightUpdate(1)
 
 	updater.Update(&types.BatchUpdate{
 		Block: &mempool.Block{
@@ -107,6 +109,7 @@ func TestMintExceedMaxSupplyError(t *testing.T) {
 			},
 		},
 	})
+	mockDb.EXPECT().IndexedHeightUpdate(1)
 
 	updater.Update(&types.BatchUpdate{
 		Block: &mempool.Block{
@@ -145,10 +148,11 @@ func TestDeploySuccess(t *testing.T) {
 			Args: map[string]interface{}{
 				"max": uint64(100),
 			},
-			TxCount:   0,
+			TxCount:   1,
 			CreatedAt: 1,
 		},
 	})
+	mockDb.EXPECT().IndexedHeightUpdate(1)
 
 	updater.Update(&types.BatchUpdate{
 		Block: &mempool.Block{
@@ -202,6 +206,7 @@ func TestMintSuccess(t *testing.T) {
 			Utxo:   "1234:0",
 		},
 	})
+	mockDb.EXPECT().IndexedHeightUpdate(1)
 
 	updater.Update(&types.BatchUpdate{
 		Block: &mempool.Block{
@@ -258,6 +263,7 @@ func TestTransferSuccess(t *testing.T) {
 		},
 		"9abc:0": nil,
 	})
+	mockDb.EXPECT().IndexedHeightUpdate(1)
 
 	updater.Update(&types.BatchUpdate{
 		Block: &mempool.Block{

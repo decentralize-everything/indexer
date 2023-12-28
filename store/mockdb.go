@@ -142,6 +142,36 @@ func (mr *MockDatabaseMockRecorder) GetCoinsInUtxos(utxos any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCoinsInUtxos", reflect.TypeOf((*MockDatabase)(nil).GetCoinsInUtxos), utxos)
 }
 
+// GetStatus mocks base method.
+func (m *MockDatabase) GetStatus() (int, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStatus")
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetStatus indicates an expected call of GetStatus.
+func (mr *MockDatabaseMockRecorder) GetStatus() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatus", reflect.TypeOf((*MockDatabase)(nil).GetStatus))
+}
+
+// IndexedHeightUpdate mocks base method.
+func (m *MockDatabase) IndexedHeightUpdate(height int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IndexedHeightUpdate", height)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// IndexedHeightUpdate indicates an expected call of IndexedHeightUpdate.
+func (mr *MockDatabaseMockRecorder) IndexedHeightUpdate(height any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IndexedHeightUpdate", reflect.TypeOf((*MockDatabase)(nil).IndexedHeightUpdate), height)
+}
+
 // UtxoBatchUpdate mocks base method.
 func (m *MockDatabase) UtxoBatchUpdate(updates map[string]*types.UnspentCoin) error {
 	m.ctrl.T.Helper()

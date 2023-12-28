@@ -12,6 +12,10 @@ import (
 func SetupRouter(db store.Database) *gin.Engine {
 	r := gin.Default()
 
+	r.GET("/api/v1/status", func(c *gin.Context) {
+		height, network, _ := db.GetStatus()
+		c.JSON(http.StatusOK, gin.H{"result": true, "data": map[string]interface{}{"network": network, "indexed_height": height}})
+	})
 	r.GET("/api/v1/coins/:id", func(c *gin.Context) {
 		id := c.Params.ByName("id")
 		ci, _ := db.GetCoinInfoById(id)

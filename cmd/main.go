@@ -14,8 +14,10 @@ import (
 )
 
 var cli struct {
-	Height int  `help:"Starting block height" default:"823122"`
-	Debug  bool `help:"Enable debug mode"`
+	Height     int    `help:"Starting block height" default:"823122"`
+	Network    string `help:"Network working on, support 'testnet' or 'mainnet'" default:"mainnet"`
+	Debug      bool   `help:"Enable debug mode"`
+	DbFilePath string `help:"Database file path, disable persistent store by using --db-file-path=\"\"" default:"./indexer.db"`
 }
 
 func main() {
@@ -26,17 +28,37 @@ func main() {
 		kong.UsageOnError(),
 	)
 
+	var params *chaincfg.Params
+	switch cli.Network {
+	case "testnet":
+		params = &chaincfg.TestNet3Params
+	case "mainnet":
+		params = &chaincfg.MainNetParams
+	default:
+		panic("invalid network")
+	}
+
 	logger, _ := zap.NewDevelopment()
-	db := store.NewMemDb(cli.Debug)
-	btcClient := mempool.NewBitcoinClient(&chaincfg.MainNetParams)
+	db := store.NewMemDb(cli.DbFilePath, cli.Network, cli.Debug, logger.Named("store"))
+	btcClient := mempool.NewBitcoinClient(params)
 	btcTransformer := transform.NewBitcoinTransformer(db, logger.Named("transform"))
 	updater := load.NewDbUpdater(db, logger.Named("load"))
+
+	height, network, err := db.GetStatus()
+	if err != nil {
+		panic(err)
+	}
+	if height != 0 {
+		height++
+		logger.Warn("Overwrite command line parameter", zap.Int("height", height), zap.String("network", network))
+	} else {
+		height = cli.Height
+	}
 
 	// Start http service.
 	router := api.SetupRouter(db)
 	go router.Run(":8080")
 
-	height := cli.Height
 	for {
 		blockHash, err := btcClient.GetBlockHash(height)
 		if err != nil {
