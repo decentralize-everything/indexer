@@ -70,7 +70,7 @@ func listCoins(db store.Database, page string, pageSize string, sortedBy string,
 	end := start + size
 	// Check if start and end are within bounds
 	if start >= len(coins) {
-		c.JSON(http.StatusOK, gin.H{"result": true, "data": nil})
+		c.JSON(http.StatusOK, gin.H{"result": true, "data": map[string]interface{}{"total": len(coins), "list": nil}})
 		return
 	}
 	if end > len(coins) {
@@ -106,5 +106,5 @@ func listCoins(db store.Database, page string, pageSize string, sortedBy string,
 	}
 
 	sort.Slice(coins, sortFunc)
-	c.JSON(http.StatusOK, gin.H{"result": true, "data": coins[start:end]})
+	c.JSON(http.StatusOK, gin.H{"result": true, "data": map[string]interface{}{"total": len(coins), "list": coins[start:end]}})
 }

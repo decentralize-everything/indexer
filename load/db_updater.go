@@ -34,11 +34,13 @@ OUTER:
 
 			if ci, err := u.db.GetCoinInfoById(event.CoinId); err == nil && ci == nil {
 				coinInfoUpdates[event.CoinId] = &types.CoinInfo{
-					Id:          event.CoinId,
-					TotalSupply: 0,
-					Args:        event.Args,
-					TxCount:     1,
-					CreatedAt:   batch.Block.GetHeight(),
+					Id:           event.CoinId,
+					TotalSupply:  0,
+					Args:         event.Args,
+					TxCount:      1,
+					CreatedAt:    batch.Block.GetTime(),
+					DeployTx:     txUpdate.Txid,
+					DeployHeight: batch.Block.GetHeight(),
 				}
 			} else {
 				panic("unexpected error: duplicated coin deployment should be identified by transformer")

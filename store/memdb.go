@@ -417,9 +417,11 @@ func (m *MemDb) fillTestData() {
 			"sats":  uint64(10000),
 			"limit": 1,
 		},
-		TxCount:     1,
-		HolderCount: 100,
-		CreatedAt:   800005,
+		TxCount:      1,
+		HolderCount:  100,
+		CreatedAt:    1703500000,
+		DeployTx:     "1111",
+		DeployHeight: 800005,
 	}
 	m.coins["TESTCB"] = &types.CoinInfo{
 		Id:          "TESTCB",
@@ -429,9 +431,11 @@ func (m *MemDb) fillTestData() {
 			"sats":  uint64(10000),
 			"limit": 1,
 		},
-		TxCount:     2,
-		HolderCount: 99,
-		CreatedAt:   800006,
+		TxCount:      2,
+		HolderCount:  99,
+		CreatedAt:    1703600000,
+		DeployTx:     "2222",
+		DeployHeight: 800006,
 	}
 	m.coins["TESTCC"] = &types.CoinInfo{
 		Id:          "TESTCC",
@@ -441,9 +445,11 @@ func (m *MemDb) fillTestData() {
 			"sats":  uint64(10000),
 			"limit": 1,
 		},
-		TxCount:     3,
-		HolderCount: 98,
-		CreatedAt:   800007,
+		TxCount:      3,
+		HolderCount:  98,
+		CreatedAt:    1703700000,
+		DeployTx:     "3333",
+		DeployHeight: 800007,
 	}
 	m.coins["TESTCD"] = &types.CoinInfo{
 		Id:          "TESTCD",
@@ -453,9 +459,11 @@ func (m *MemDb) fillTestData() {
 			"sats":  uint64(10000),
 			"limit": 1,
 		},
-		TxCount:     4,
-		HolderCount: 97,
-		CreatedAt:   800008,
+		TxCount:      4,
+		HolderCount:  97,
+		CreatedAt:    1703800000,
+		DeployTx:     "4444",
+		DeployHeight: 800008,
 	}
 	m.coins["TESTCE"] = &types.CoinInfo{
 		Id:          "TESTCE",
@@ -465,9 +473,11 @@ func (m *MemDb) fillTestData() {
 			"sats":  uint64(10000),
 			"limit": 1,
 		},
-		TxCount:     5,
-		HolderCount: 96,
-		CreatedAt:   800009,
+		TxCount:      5,
+		HolderCount:  96,
+		CreatedAt:    1703900000,
+		DeployTx:     "5555",
+		DeployHeight: 800009,
 	}
 	m.coins["TESTCF"] = &types.CoinInfo{
 		Id:          "TESTCF",
@@ -477,9 +487,11 @@ func (m *MemDb) fillTestData() {
 			"sats":  uint64(10000),
 			"limit": 1,
 		},
-		TxCount:     6,
-		HolderCount: 95,
-		CreatedAt:   800010,
+		TxCount:      6,
+		HolderCount:  95,
+		CreatedAt:    1704000000,
+		DeployTx:     "6666",
+		DeployHeight: 800010,
 	}
 	m.coins["TESTCG"] = &types.CoinInfo{
 		Id:          "TESTCG",
@@ -489,9 +501,11 @@ func (m *MemDb) fillTestData() {
 			"sats":  uint64(10000),
 			"limit": 1,
 		},
-		TxCount:     7,
-		HolderCount: 94,
-		CreatedAt:   800011,
+		TxCount:      7,
+		HolderCount:  94,
+		CreatedAt:    1704100000,
+		DeployTx:     "7777",
+		DeployHeight: 800011,
 	}
 	m.coins["TESTCH"] = &types.CoinInfo{
 		Id:          "TESTCH",
@@ -501,9 +515,11 @@ func (m *MemDb) fillTestData() {
 			"sats":  uint64(10000),
 			"limit": 1,
 		},
-		TxCount:     8,
-		HolderCount: 93,
-		CreatedAt:   800012,
+		TxCount:      8,
+		HolderCount:  93,
+		CreatedAt:    1704200000,
+		DeployTx:     "8888",
+		DeployHeight: 800012,
 	}
 	m.coins["TESTCI"] = &types.CoinInfo{
 		Id:          "TESTCI",
@@ -513,9 +529,11 @@ func (m *MemDb) fillTestData() {
 			"sats":  uint64(10000),
 			"limit": 1,
 		},
-		TxCount:     9,
-		HolderCount: 92,
-		CreatedAt:   800001,
+		TxCount:      9,
+		HolderCount:  92,
+		CreatedAt:    1703100000,
+		DeployTx:     "9999",
+		DeployHeight: 800001,
 	}
 	m.coins["TESTCJ"] = &types.CoinInfo{
 		Id:          "TESTCJ",
@@ -525,9 +543,11 @@ func (m *MemDb) fillTestData() {
 			"sats":  uint64(10000),
 			"limit": 1,
 		},
-		TxCount:     10,
-		HolderCount: 91,
-		CreatedAt:   800002,
+		TxCount:      10,
+		HolderCount:  91,
+		CreatedAt:    1703200000,
+		DeployTx:     "aaaa",
+		DeployHeight: 800002,
 	}
 	m.coins["TESTCK"] = &types.CoinInfo{
 		Id:          "TESTCK",
@@ -537,9 +557,11 @@ func (m *MemDb) fillTestData() {
 			"sats":  uint64(10000),
 			"limit": 1,
 		},
-		TxCount:     11,
-		HolderCount: 90,
-		CreatedAt:   800003,
+		TxCount:      11,
+		HolderCount:  90,
+		CreatedAt:    1703300000,
+		DeployTx:     "bbbb",
+		DeployHeight: 800003,
 	}
 	m.coins["TESTCL"] = &types.CoinInfo{
 		Id:          "TESTCL",
@@ -549,9 +571,11 @@ func (m *MemDb) fillTestData() {
 			"sats":  uint64(10000),
 			"limit": 1,
 		},
-		TxCount:     12,
-		HolderCount: 89,
-		CreatedAt:   800004,
+		TxCount:      12,
+		HolderCount:  89,
+		CreatedAt:    1703400000,
+		DeployTx:     "cccc",
+		DeployHeight: 800004,
 	}
 
 	m.coinAddressBalance["TESTCA"] = map[string]int{

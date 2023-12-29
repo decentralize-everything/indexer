@@ -148,8 +148,10 @@ func TestDeploySuccess(t *testing.T) {
 			Args: map[string]interface{}{
 				"max": uint64(100),
 			},
-			TxCount:   1,
-			CreatedAt: 1,
+			TxCount:      1,
+			CreatedAt:    1234567890,
+			DeployTx:     "1234",
+			DeployHeight: 1,
 		},
 	})
 	mockDb.EXPECT().IndexedHeightUpdate(1)
@@ -157,6 +159,7 @@ func TestDeploySuccess(t *testing.T) {
 	updater.Update(&types.BatchUpdate{
 		Block: &mempool.Block{
 			Height: 1,
+			Time:   1234567890,
 		},
 		TxUpdates: []*types.TxUpdate{
 			{

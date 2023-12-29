@@ -72,21 +72,26 @@ params:
 eg. localhost:8080/api/v1/coins
 
 {
-	"data": [
-		{
-			"Id": "TESTCL",
-			"TotalSupply": 5,
-			"Args": {
-				"max": 100,
-				"sats": 10000,
-                "limit": 1
+	"data": {
+		"list": [
+			{
+				"Id": "PSBTS",
+				"TotalSupply": 1,
+				"Args": {
+					"limit": 1000,
+					"max": 21000000,
+					"sats": 10000
+				},
+				"TxCount": 2,
+				"HolderCount": 0,
+				"CreatedAt": 1703823964,
+				"DeployTx": "1234567890",
+				"DeployHeight": 2567909
 			},
-			"TxCount": 12,
-			"HolderCount": 89,
-			"CreatedAt": 800004
-		},
-        ...
-	],
+            ...
+		],
+		"total": 13
+	},
 	"result": true
 }
 ```
@@ -99,18 +104,20 @@ GET /api/v1/coins/:id
 eg. localhost:8080/api/v1/coins/TESTCA
 
 {
-	"data": {
-		"Id": "TESTCA",
-		"TotalSupply": 5,
-		"Args": {
-			"max": 100,
-			"sats": 10000,
-            "limit": 1
-		},
-		"TxCount": 1,
-		"HolderCount": 100,
-		"CreatedAt": 800005
-	},
+    "data": {
+        "Id": "PSBTS",
+        "TotalSupply": 1,
+        "Args": {
+            "limit": 1000,
+            "max": 21000000,
+            "sats": 10000
+        },
+        "TxCount": 2,
+        "HolderCount": 0,
+        "CreatedAt": 1703823964,
+        "DeployTx": "1234567890",
+        "DeployHeight": 2567909
+    },
 	"result": true
 }
 ```

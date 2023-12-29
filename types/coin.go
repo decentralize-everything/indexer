@@ -6,12 +6,14 @@ import (
 )
 
 type CoinInfo struct {
-	Id          string
-	TotalSupply int
-	Args        map[string]interface{}
-	TxCount     int
-	HolderCount int
-	CreatedAt   int // Created at which block height.
+	Id           string
+	TotalSupply  int
+	Args         map[string]interface{}
+	TxCount      int
+	HolderCount  int
+	CreatedAt    int
+	DeployTx     string
+	DeployHeight int
 }
 
 func (m *CoinInfo) ToBytes() []byte {
